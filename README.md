@@ -43,3 +43,4 @@ uv pip install --python .venv -r requirements.txt
 - **Ruta directa**: línea recta del TCP dividida en 48 waypoints, IK encadenada (cada waypoint parte de la solución anterior). Si un waypoint no es alcanzable o hay un salto articular > 45° (cambio de rama), se informa y se cae a interpolación articular.
 - **Por articulación**: desde *home*, J1 → θ1, luego J2 → θ2, … una junta cada vez, con pausa entre ellas.
 - Animación con velocidad ajustable, línea de la ruta planificada, estela del TCP, barra de progreso y error final del TCP en mm. «Volver a home» interpola en espacio articular.
+- Durante la animación se resaltan las juntas que se mueven (color propio + brillo, esfera más grande y su eje de giro punteado); los eslabones proximales que no se mueven se atenúan en gris y los distales conservan su color. En modo «por articulación» se ve una junta cada vez; en ruta directa o interpolación articular se resaltan todas.

@@ -554,6 +554,12 @@ const baseMesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshSt
 const gripMat = new THREE.MeshStandardMaterial({ color: 0x444a55, roughness: 0.5 });
 const gripMeshes = Array.from({ length: 4 }, () => { const m = new THREE.Mesh(linkGeo, gripMat); armGroup.add(m); return m; });
 const tcpMesh = new THREE.Mesh(sphereGeo, new THREE.MeshStandardMaterial({ color: 0xffc400, emissive: 0x6b5200, roughness: 0.3 })); armGroup.add(tcpMesh);
+// eje de rotación (z del frame) de cada junta: visible solo mientras esa junta se mueve
+const axisLines = LINK_COLORS.map(c => {
+  const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
+                           new THREE.LineDashedMaterial({ color: c, dashSize: 0.012, gapSize: 0.008 }));
+  l.visible = false; armGroup.add(l); return l;
+});
 
 const cloudGeo = new THREE.BufferGeometry();
 const cloudMat = new THREE.PointsMaterial({ size: 0.006, vertexColors: true, transparent: true, opacity: 0.9, sizeAttenuation: true });
@@ -602,6 +608,7 @@ let pose = [...arm.home];
 let cloudPts = null, cloudQs = null, cloudStale = true;
 let sel = null;   // { idx, p:[x,y,z], qSample, qIK, ikInfo }
 let anim = null;  // { keys, t, T, times[] }
+let highlight = null, highlightKey = '';  // Set de juntas en movimiento (null = sin resaltado)
 const $ = id => document.getElementById(id);
 
 // --- selector DOF ---
@@ -807,7 +814,7 @@ function startAnim(plan, msg, cls = '') {
   $('traj-status').textContent = msg; $('traj-status').className = 'status ' + cls;
   $('go').disabled = true; $('go-home').disabled = true;
 }
-function stopAnim() { anim = null; $('go').disabled = false; $('go-home').disabled = false; }
+function stopAnim() { anim = null; setHighlight(null); $('go').disabled = false; $('go-home').disabled = false; }
 
 function stepAnim(now) {
   if (!anim) return;
@@ -818,6 +825,8 @@ function stepAnim(now) {
   const segT = anim.times[s] - anim.times[s - 1];
   let u = segT > 0 ? (t - anim.times[s - 1]) / segT : 1;
   if (k1.ease) u = smooth(u);
+  const act = new Set(); k1.q.forEach((v, i) => { if (Math.abs(v - k0.q[i]) > 1e-3) act.add(i); });
+  if (act.size) setHighlight(act);   // en una pausa se conserva el resaltado anterior
   pose = k0.q.map((v, i) => v + (k1.q[i] - v) * u);
   drawArm();
   $('prog').value = anim.T > 0 ? t / anim.T : 1;
@@ -835,14 +844,55 @@ function stepAnim(now) {
 }
 
 // =====================================================================
+// Resaltado de juntas/eslabones en movimiento
+//   activa      → color propio + emisivo, junta más grande y eje de giro visible
+//   proximal    → gris translúcido (no se mueve)
+//   distal      → color normal (se arrastra con la junta activa)
+// =====================================================================
+const DIM = 0x9aa3ad, JOINT_DARK = 0x2a2f38;
+function setHighlight(set) {
+  const key = set ? [...set].sort().join(',') : '';
+  if (key === highlightKey) return;
+  highlight = set; highlightKey = key;
+  const n = arm.dof, maxA = set ? Math.max(...set) : -1;
+  linkMeshes.forEach((m, i) => {
+    if (i >= n) return; const mat = m.material;
+    if (set && set.has(i)) { mat.color.set(LINK_COLORS[i]); mat.emissive.set(LINK_COLORS[i]); mat.emissiveIntensity = 0.45; mat.opacity = 1; mat.transparent = false; }
+    else if (!set || i > maxA) { mat.color.set(LINK_COLORS[i]); mat.emissive.set(0x000000); mat.opacity = 1; mat.transparent = false; }
+    else { mat.color.set(DIM); mat.emissive.set(0x000000); mat.opacity = 0.28; mat.transparent = true; }
+  });
+  jointMeshes.forEach((m, i) => {
+    const mat = m.material;
+    if (set && set.has(i)) { mat.color.set(LINK_COLORS[i]); mat.emissive.set(LINK_COLORS[i]); mat.emissiveIntensity = 0.6; mat.opacity = 1; mat.transparent = false; }
+    else if (!set || i > maxA) { mat.color.set(JOINT_DARK); mat.emissive.set(0x000000); mat.opacity = 1; mat.transparent = false; }
+    else { mat.color.set(DIM); mat.emissive.set(0x000000); mat.opacity = 0.35; mat.transparent = true; }
+  });
+  baseMesh.material.color.set(set && maxA >= 0 && !set.has(0) ? DIM : JOINT_DARK);
+  drawArm();
+}
+
+// =====================================================================
 // Dibujo del brazo y encuadre
 // =====================================================================
 function drawArm() {
-  const { pts, T, tcp } = arm.fkChain(pose);
+  const { frames, pts, T, tcp } = arm.fkChain(pose);
   const R = arm.maxReach();
   const rLink = Math.max(0.006, R * 0.016), rJoint = rLink * 1.6;
   linkMeshes.forEach((m, i) => { if (i < arm.dof) placeCylinder(m, pts[i], pts[i + 1], rLink); else m.visible = false; });
-  jointMeshes.forEach((m, i) => { m.visible = i <= arm.dof; if (m.visible) { m.position.set(...pts[i]); m.scale.setScalar(rJoint); } });
+  jointMeshes.forEach((m, i) => {
+    m.visible = i <= arm.dof; if (!m.visible) return;
+    m.position.set(...pts[i]); m.scale.setScalar(rJoint * (highlight && highlight.has(i) ? 1.45 : 1));
+  });
+  axisLines.forEach((l, i) => {
+    l.visible = !!(highlight && highlight.has(i)) && i < arm.dof;
+    if (!l.visible) return;
+    const F = frames[i], z = [F[2], F[6], F[10]], L = R * 0.22;
+    const pos = l.geometry.attributes.position;
+    pos.setXYZ(0, pts[i][0] - z[0] * L, pts[i][1] - z[1] * L, pts[i][2] - z[2] * L);
+    pos.setXYZ(1, pts[i][0] + z[0] * L, pts[i][1] + z[1] * L, pts[i][2] + z[2] * L);
+    pos.needsUpdate = true; l.computeLineDistances();
+    l.material.dashSize = R * 0.02; l.material.gapSize = R * 0.012;
+  });
   baseMesh.position.set(0, 0, 0); baseMesh.scale.setScalar(rJoint * 2.2);
 
   const wrist = pts[pts.length - 1];
