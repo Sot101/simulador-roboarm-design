@@ -35,3 +35,11 @@ uv pip install --python .venv -r requirements.txt
 
 - `workspace_lab.html` — fuente publicada como artefacto en claude.ai (misma cinemática y presets que la versión Python).
 - `workspace_lab_local.html` — misma página envuelta en `<!doctype>`/`<head>` para abrirla directamente en el navegador (`xdg-open workspace_lab_local.html`). Necesita internet solo para descargar Three.js y las fuentes desde CDN.
+
+## Cinemática inversa y trayectorias (versión web)
+
+- **Seleccionar objetivo**: clic sobre cualquier punto de la nube (o «Elegir uno al azar»). Cada punto guarda la configuración articular que lo generó durante el muestreo, así que siempre existe al menos una solución conocida.
+- **IK numérica de posición**: Jacobiano geométrico + mínimos cuadrados amortiguados (DLS), saturación en los límites articulares y término de espacio nulo hacia *home* para brazos redundantes. Multistart: primero desde *home*; si cae en un mínimo local, hasta 12 semillas aleatorias (se elige la más cercana a *home*); último recurso, la configuración del muestreo. El panel muestra θ IK y θ muestra lado a lado.
+- **Ruta directa**: línea recta del TCP dividida en 48 waypoints, IK encadenada (cada waypoint parte de la solución anterior). Si un waypoint no es alcanzable o hay un salto articular > 45° (cambio de rama), se informa y se cae a interpolación articular.
+- **Por articulación**: desde *home*, J1 → θ1, luego J2 → θ2, … una junta cada vez, con pausa entre ellas.
+- Animación con velocidad ajustable, línea de la ruta planificada, estela del TCP, barra de progreso y error final del TCP en mm. «Volver a home» interpola en espacio articular.

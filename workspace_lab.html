@@ -12,9 +12,12 @@
     --accent: #1f5fbf;
     --accent-hover: #174c9b;
     --accent-ink: #ffffff;
+    --target: #d81b74;
+    --target-soft: #fce4ef;
     --warn: #d9662a;
     --warn-hover: #bf5520;
     --warn-soft: #fbe9df;
+    --ok: #1e8e5a;
     --focus: #8fb3ff;
     --scene-bg: #f3f5f8;
     --grid: #c9d1dc;
@@ -26,16 +29,16 @@
     :root:not([data-theme="light"]) {
       --bg: #0e1319; --panel: #161c25; --panel-2: #1c2430; --ink: #e6ebf2;
       --muted: #98a4b5; --line: #2a3442; --track: #2a3442; --accent: #5b9bff;
-      --accent-hover: #7cafff; --accent-ink: #0b1220; --warn: #f0894a;
-      --warn-hover: #f6a06c; --warn-soft: #3a2418; --focus: #7cafff;
+      --accent-hover: #7cafff; --accent-ink: #0b1220; --target: #ff5fa8; --target-soft: #3a1a2a;
+      --warn: #f0894a; --warn-hover: #f6a06c; --warn-soft: #3a2418; --ok: #4cc48a; --focus: #7cafff;
       --scene-bg: #111820; --grid: #26313f; --grid-strong: #3a4859;
     }
   }
   :root[data-theme="dark"] {
     --bg: #0e1319; --panel: #161c25; --panel-2: #1c2430; --ink: #e6ebf2;
     --muted: #98a4b5; --line: #2a3442; --track: #2a3442; --accent: #5b9bff;
-    --accent-hover: #7cafff; --accent-ink: #0b1220; --warn: #f0894a;
-    --warn-hover: #f6a06c; --warn-soft: #3a2418; --focus: #7cafff;
+    --accent-hover: #7cafff; --accent-ink: #0b1220; --target: #ff5fa8; --target-soft: #3a1a2a;
+    --warn: #f0894a; --warn-hover: #f6a06c; --warn-soft: #3a2418; --ok: #4cc48a; --focus: #7cafff;
     --scene-bg: #111820; --grid: #26313f; --grid-strong: #3a4859;
   }
 
@@ -47,9 +50,7 @@
   * { box-sizing: border-box; }
   button, input { font: inherit; color: inherit; }
 
-  #app {
-    display: grid; grid-template-columns: 1fr 372px; height: 100%;
-  }
+  #app { display: grid; grid-template-columns: 1fr 384px; height: 100%; }
   @media (max-width: 900px) {
     #app { grid-template-columns: 1fr; grid-template-rows: 58vh auto; height: auto; min-height: 100%; }
   }
@@ -57,6 +58,7 @@
   /* ---------- viewport 3D ---------- */
   #viewport { position: relative; min-height: 320px; background: var(--scene-bg); }
   #viewport canvas { display: block; width: 100%; height: 100%; }
+  #viewport.picking canvas { cursor: crosshair; }
   .overlay { position: absolute; pointer-events: none; }
   #reach { top: 14px; left: 18px; color: var(--muted); font-size: 14px; }
   #reach b { color: var(--ink); font-family: var(--mono); font-weight: 500; }
@@ -71,7 +73,11 @@
     background: var(--warn-soft); color: var(--warn); font-weight: 500; font-size: 13px;
     border: 1px solid var(--warn);
   }
-  #hint { right: 18px; bottom: 14px; color: var(--muted); font-size: 12px; }
+  #hint { right: 18px; bottom: 14px; color: var(--muted); font-size: 12px; text-align: right; }
+  #pick-label {
+    transform: translate(12px, -50%); padding: 4px 8px; border-radius: 6px; font-size: 12px;
+    font-family: var(--mono); background: var(--target); color: #fff; white-space: nowrap;
+  }
 
   /* ---------- panel ---------- */
   #panel {
@@ -91,9 +97,9 @@
     margin: 0; font-size: 12px; font-weight: 600; text-transform: uppercase;
     letter-spacing: 0.08em; color: var(--muted);
   }
+  .muted { color: var(--muted); font-size: 13px; margin: 0; }
 
-  /* segmented control DOF */
-  .seg { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg { display: grid; grid-template-columns: repeat(6, 1fr); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
   .seg button {
     padding: 9px 0; background: var(--panel-2); border: 0; border-right: 1px solid var(--line);
     cursor: pointer; font-weight: 500; font-size: 15px;
@@ -109,12 +115,15 @@
   }
   .btn:hover { border-color: var(--muted); }
   .btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .btn:disabled { opacity: 0.5; cursor: default; }
   .btn.small { padding: 4px 10px; font-size: 13px; flex: 0 0 auto; }
   .btn.primary {
     background: var(--accent); color: var(--accent-ink); border-color: transparent;
     font-size: 16px; font-weight: 600; padding: 12px;
   }
   .btn.primary:hover { background: var(--accent-hover); }
+  .btn.go { background: var(--target); color: #fff; border-color: transparent; font-weight: 600; }
+  .btn.go:hover { filter: brightness(0.92); }
   body.stale .btn.primary { background: var(--warn); color: #fff; }
   body.stale .btn.primary:hover { background: var(--warn-hover); }
 
@@ -122,7 +131,6 @@
   .checks label { display: flex; align-items: center; gap: 10px; cursor: pointer; }
   .checks input { width: 18px; height: 18px; accent-color: var(--accent); margin: 0; }
 
-  /* sliders */
   .sl { display: grid; grid-template-columns: 78px 1fr 64px; align-items: center; gap: 10px; }
   .sl label { font-size: 14px; }
   .sl label small { color: var(--muted); font-family: var(--mono); font-size: 12px; margin-left: 3px; }
@@ -131,13 +139,30 @@
   .sl input[type=range]:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
   .sl[hidden] { display: none; }
 
-  /* status */
   .status {
     font-family: var(--mono); font-size: 12.5px; line-height: 1.55;
     background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px;
     padding: 10px 12px; white-space: pre-wrap; font-variant-numeric: tabular-nums;
   }
-  body.stale .status { color: var(--warn); border-color: var(--warn); }
+  body.stale .status.ws { color: var(--warn); border-color: var(--warn); }
+  .status.ok { color: var(--ok); }
+  .status.warn { color: var(--warn); border-color: var(--warn); }
+
+  /* objetivo / IK */
+  #target-sec .sec-head h2 { color: var(--target); }
+  .kv { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 14px; }
+  .kv b { font-family: var(--mono); font-weight: 500; font-variant-numeric: tabular-nums; }
+  table.q { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+  table.q th { text-align: right; font-weight: 500; color: var(--muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em; padding: 2px 4px; }
+  table.q th:first-child, table.q td:first-child { text-align: left; }
+  table.q td { padding: 3px 4px; border-top: 1px solid var(--line); text-align: right; font-family: var(--mono); }
+  table.q td:first-child { font-family: var(--sans); }
+  table.q td .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: 0; }
+  .radios { display: flex; flex-direction: column; gap: 6px; }
+  .radios label { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; font-size: 14px; }
+  .radios input { accent-color: var(--target); margin: 4px 0 0; width: 16px; height: 16px; flex: 0 0 auto; }
+  .radios small { display: block; color: var(--muted); font-size: 12.5px; }
+  progress { width: 100%; height: 6px; accent-color: var(--target); }
 
   details { font-size: 13px; color: var(--muted); }
   details summary { cursor: pointer; font-weight: 500; color: var(--ink); }
@@ -150,19 +175,20 @@
 </style>
 
 <div id="app">
-  <div id="viewport">
+  <div id="viewport" class="picking">
     <div id="reach" class="overlay">Alcance máximo teórico: <b>—</b></div>
     <div id="legend" class="overlay">
       <div class="bar"></div>
       <div class="ticks"><span id="zmin">—</span><span>altura Z del TCP [m]</span><span id="zmax">—</span></div>
     </div>
     <div id="stale-banner" class="overlay" hidden>Nube desactualizada → Recalcular</div>
-    <div id="hint" class="overlay">arrastrar: girar · rueda: zoom · botón derecho: mover</div>
+    <div id="hint" class="overlay">clic en un punto: seleccionar objetivo<br>arrastrar: girar · rueda: zoom · botón derecho: mover</div>
+    <div id="pick-label" class="overlay" hidden></div>
   </div>
 
   <aside id="panel">
     <header>
-      <h1>Reachable workspace · Monte Carlo</h1>
+      <h1>Reachable workspace · Monte Carlo + IK</h1>
       <p class="sub" id="desc">—</p>
     </header>
 
@@ -196,18 +222,47 @@
         <output id="nsamp-out">5000</output>
       </div>
       <button class="btn primary" id="recalc">Recalcular workspace</button>
-      <div class="status" id="status">—</div>
+      <div class="status ws" id="status">—</div>
+    </section>
+
+    <section id="target-sec">
+      <div class="sec-head">
+        <h2>Punto objetivo · cinemática inversa</h2>
+        <button class="btn small" id="pick-random">Elegir uno al azar</button>
+      </div>
+      <p class="muted" id="pick-hint">Haz clic sobre un punto de la nube (o elige uno al azar). Cada punto es una posición del TCP realmente alcanzada durante el muestreo.</p>
+      <div id="target-box" hidden style="display:flex;flex-direction:column;gap:10px">
+        <div class="kv"><span>TCP objetivo [m]</span><b id="t-xyz">—</b></div>
+        <table class="q" id="qtab"></table>
+        <div class="status" id="ik-info">—</div>
+        <div class="radios" role="radiogroup" aria-label="Tipo de trayectoria">
+          <label><input type="radio" name="traj" value="direct" checked>
+            <span>Ruta directa<small>El TCP sigue una línea recta en waypoints; IK encadenada waypoint a waypoint. Si algún tramo no es alcanzable, se avisa y se usa interpolación articular.</small></span></label>
+          <label><input type="radio" name="traj" value="seq">
+            <span>Por articulación<small>Desde home: J1 → θ1, después J2 → θ2, … una junta cada vez, para ver el efecto de cada una.</small></span></label>
+        </div>
+        <div class="sl" style="--c: var(--target)">
+          <label for="speed">Velocidad</label>
+          <input type="range" id="speed" min="0.25" max="3" step="0.25" value="1">
+          <output id="speed-out">1.00×</output>
+        </div>
+        <div class="row">
+          <button class="btn go" id="go">Ir a este punto</button>
+          <button class="btn" id="go-home">Volver a home</button>
+        </div>
+        <progress id="prog" max="1" value="0"></progress>
+        <div class="status" id="traj-status">Listo. Elige el tipo de trayectoria y pulsa «Ir a este punto».</div>
+      </div>
     </section>
 
     <details>
       <summary>Qué calcula y qué no (limitaciones del MVP)</summary>
       <ul>
         <li>Cadena serial de juntas revolutas, convención DH estándar: T = Rz(θ)·Tz(d)·Tx(a)·Rx(α). El gripper es un eslabón fijo (no es un DOF).</li>
-        <li>Monte Carlo: ángulos uniformes dentro de cada rango, FK por muestra, se acumula la posición del TCP.</li>
-        <li>No considera auto-colisión ni colisión con el suelo.</li>
-        <li>No distingue <em>dexterous</em> de <em>reachable</em> workspace: solo posición, la orientación se ignora.</li>
-        <li>No analiza singularidades ni manipulabilidad.</li>
-        <li>La densidad de puntos es un artefacto del muestreo articular, no una medida de "facilidad de alcance".</li>
+        <li>Workspace por Monte Carlo: ángulos uniformes dentro de cada rango, FK por muestra, se acumula la posición del TCP. La densidad de puntos es un artefacto del muestreo, no una medida de "facilidad de alcance".</li>
+        <li>IK numérica de posición (3 restricciones): Jacobiano geométrico + mínimos cuadrados amortiguados (DLS), límites articulares por saturación, y para brazos redundantes un término de espacio nulo que tira hacia home. La orientación del gripper no se controla.</li>
+        <li>La "ruta directa" es una línea recta del TCP resuelta waypoint a waypoint; falla (y se avisa) si un waypoint queda fuera del workspace o si la solución salta de rama.</li>
+        <li>No considera auto-colisión ni colisión con el suelo; no analiza singularidades ni manipulabilidad; no distingue <em>dexterous</em> de <em>reachable</em> workspace.</li>
       </ul>
     </details>
   </aside>
@@ -227,7 +282,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 // Presets (longitudes en m, ángulos en grados)
 // lenKey: qué parámetro DH ('a' o 'd') controla el slider de ese eslabón
 // =====================================================================
-const D2R = Math.PI / 180;
+const D2R = Math.PI / 180, R2D = 180 / Math.PI;
 const J = (name, a, alpha, d, rng, lenKey) => ({ name, a, alpha, d, rng, lenKey });
 const PLANAR_BASE = rotx(90); // z0 = -Y mundo → el brazo se mueve en el plano vertical XZ, θ>0 sube
 
@@ -278,6 +333,11 @@ function dh(th, d, a, al, out = new Float64Array(16)) {
   out[12] = 0; out[13] = 0; out[14] = 0; out[15] = 1;
   return out;
 }
+const v3 = { sub: (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], norm: a => Math.hypot(a[0], a[1], a[2]),
+             cross: (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]],
+             lerp: (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t] };
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+const smooth = t => t * t * (3 - 2 * t);
 
 // =====================================================================
 // Modelo del brazo
@@ -296,41 +356,158 @@ class Arm {
   gripperT() { return this.gripAxis === 'x' ? trans(this.gripper, 0, 0) : trans(0, 0, this.gripper); }
   maxReach() { return this.joints.reduce((s, j) => s + Math.abs(j.a) + Math.abs(j.d), 0) + this.gripper; }
   randomPose() { return this.joints.map(j => j.rng[0] + Math.random() * (j.rng[1] - j.rng[0])); }
+  clampPose(q) { return q.map((v, i) => clamp(v, this.joints[i].rng[0], this.joints[i].rng[1])); }
 
-  // Devuelve {pts: orígenes de cada frame, T: frame final, tcp: [x,y,z]}
+  // FK completa: frames[i] = frame ANTES de la junta i (frames[0] = base), T = frame final, tcp
   fkChain(qDeg) {
     let T = Float64Array.from(this.base);
-    const pts = [[T[3], T[7], T[11]]];
+    const frames = [T], pts = [[T[3], T[7], T[11]]];
     this.joints.forEach((j, i) => {
       T = mul(T, dh(qDeg[i] * D2R, j.d, j.a, j.alpha * D2R));
-      pts.push([T[3], T[7], T[11]]);
+      frames.push(T); pts.push([T[3], T[7], T[11]]);
     });
     const Tt = mul(T, this.gripperT());
-    return { pts, T, tcp: [Tt[3], Tt[7], Tt[11]] };
+    return { frames, pts, T, tcp: [Tt[3], Tt[7], Tt[11]] };
+  }
+  tcp(qDeg) { return this.fkChain(qDeg).tcp; }
+
+  // Jacobiano geométrico de posición (3 x n): columna i = z_i × (tcp − o_i)
+  jacobian(qDeg) {
+    const { frames, tcp } = this.fkChain(qDeg);
+    const Jm = [[], [], []];
+    for (let i = 0; i < this.dof; i++) {
+      const F = frames[i];
+      const z = [F[2], F[6], F[10]], o = [F[3], F[7], F[11]];
+      const c = v3.cross(z, v3.sub(tcp, o));
+      Jm[0][i] = c[0]; Jm[1][i] = c[1]; Jm[2][i] = c[2];
+    }
+    return { Jm, tcp };
   }
 
-  // Monte Carlo: n muestras uniformes en el espacio articular → Float32Array(3n)
+  // Monte Carlo: n muestras uniformes en el espacio articular.
+  // Devuelve posiciones (Float32Array 3n) y las configuraciones que las generaron (Float32Array n·dof, grados)
   sample(n) {
-    const out = new Float32Array(3 * n);
+    const pos = new Float32Array(3 * n), qs = new Float32Array(n * this.dof);
     const G = this.gripperT();
     const js = this.joints.map(j => ({ lo: j.rng[0] * D2R, span: (j.rng[1] - j.rng[0]) * D2R, d: j.d, a: j.a, al: j.alpha * D2R }));
     const A = new Float64Array(16), B = new Float64Array(16), M = new Float64Array(16);
     for (let k = 0; k < n; k++) {
       A.set(this.base);
-      for (const j of js) {
-        dh(j.lo + Math.random() * j.span, j.d, j.a, j.al, M);
-        mul(A, M, B); A.set(B);
-      }
+      js.forEach((j, i) => {
+        const th = j.lo + Math.random() * j.span;
+        qs[k * this.dof + i] = th * R2D;
+        dh(th, j.d, j.a, j.al, M); mul(A, M, B); A.set(B);
+      });
       mul(A, G, B);
-      out[3 * k] = B[3]; out[3 * k + 1] = B[7]; out[3 * k + 2] = B[11];
+      pos[3 * k] = B[3]; pos[3 * k + 1] = B[7]; pos[3 * k + 2] = B[11];
     }
-    return out;
+    return { pos, qs };
   }
+}
+
+// =====================================================================
+// Cinemática inversa numérica (posición): DLS + límites + espacio nulo
+// =====================================================================
+function solve3(M, b) { // M 3x3 (array de filas), b[3] → x
+  const [[a, b1, c], [d, e, f], [g, h, i]] = M;
+  const det = a * (e * i - f * h) - b1 * (d * i - f * g) + c * (d * h - e * g);
+  if (Math.abs(det) < 1e-18) return null;
+  const inv = [
+    [(e * i - f * h) / det, (c * h - b1 * i) / det, (b1 * f - c * e) / det],
+    [(f * g - d * i) / det, (a * i - c * g) / det, (c * d - a * f) / det],
+    [(d * h - e * g) / det, (b1 * g - a * h) / det, (a * e - b1 * d) / det]];
+  return inv.map(r => r[0] * b[0] + r[1] * b[1] + r[2] * b[2]);
+}
+
+function solveIK(arm, target, q0Deg, { maxIt = 200, tol = 5e-4, lambda = 0.04, maxStep = 0.25, centering = 0.02 } = {}) {
+  const n = arm.dof;
+  let q = q0Deg.slice();
+  const homeRad = arm.home.map(v => v * D2R);
+  let err = Infinity, it = 0;
+  for (; it < maxIt; it++) {
+    const { Jm, tcp } = arm.jacobian(q);
+    const e = v3.sub(target, tcp); err = v3.norm(e);
+    if (err < tol) break;
+    // JJᵀ + λ²I  (3x3)
+    const A = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
+      let s = 0; for (let k = 0; k < n; k++) s += Jm[r][k] * Jm[c][k];
+      A[r][c] = s + (r === c ? lambda * lambda : 0);
+    }
+    const y = solve3(A, e); if (!y) break;
+    const dq = new Array(n).fill(0);
+    for (let k = 0; k < n; k++) dq[k] = Jm[0][k] * y[0] + Jm[1][k] * y[1] + Jm[2][k] * y[2];   // Jᵀ y (rad)
+    // espacio nulo (brazos redundantes): (I − J⁺J)·k·(home − q)
+    if (n > 3 && centering > 0) {
+      const Jp = []; // J⁺ = Jᵀ (JJᵀ+λ²I)⁻¹  → n x 3
+      for (let k = 0; k < n; k++) Jp.push(solve3(A, [Jm[0][k], Jm[1][k], Jm[2][k]]) || [0, 0, 0]);
+      const w = q.map((v, k) => centering * (homeRad[k] - v * D2R));
+      const Jw = [0, 1, 2].map(r => w.reduce((s, wk, k) => s + Jm[r][k] * wk, 0));
+      for (let k = 0; k < n; k++) dq[k] += w[k] - (Jp[k][0] * Jw[0] + Jp[k][1] * Jw[1] + Jp[k][2] * Jw[2]);
+    }
+    const nrm = Math.hypot(...dq);
+    const sc = nrm > maxStep ? maxStep / nrm : 1;
+    q = arm.clampPose(q.map((v, k) => v + dq[k] * sc * R2D));
+  }
+  return { q, err, it, ok: err < tol };
+}
+
+// Multistart: primero home; si cae en un mínimo local o en un límite, semillas aleatorias.
+// Entre las que convergen se elige la más cercana a home (en norma articular).
+function solveIKMulti(arm, target, tries = 12) {
+  const dist = q => Math.hypot(...q.map((v, i) => v - arm.home[i]));
+  let best = solveIK(arm, target, arm.home); best.seed = 0;
+  if (best.ok) return best;
+  let bestOk = null;
+  for (let k = 1; k <= tries; k++) {
+    const r = solveIK(arm, target, arm.randomPose()); r.seed = k;
+    if (r.ok && (!bestOk || dist(r.q) < dist(bestOk.q))) bestOk = r;
+    if (!r.ok && r.err < best.err) best = r;
+  }
+  return bestOk || best;
+}
+
+// =====================================================================
+// Planificación de trayectorias (keyframes {q, dur, ease})
+// =====================================================================
+const MAX_JOINT_JUMP = 45; // ° entre waypoints consecutivos → indica salto de rama
+
+function planDirect(arm, qStart, target, K = 48) {
+  const p0 = arm.tcp(qStart);
+  const keys = [{ q: qStart.slice(), dur: 0 }];
+  let q = qStart.slice();
+  const durTotal = 2.6;
+  for (let k = 1; k <= K; k++) {
+    const p = v3.lerp(p0, target, k / K);
+    const r = solveIK(arm, p, q, { tol: 1.5e-3, maxIt: 80 });
+    if (!r.ok) return { ok: false, reason: `waypoint ${k}/${K} no alcanzable (error ${(r.err * 1000).toFixed(1)} mm)`, keys };
+    const jump = Math.max(...r.q.map((v, i) => Math.abs(v - q[i])));
+    if (jump > MAX_JOINT_JUMP) return { ok: false, reason: `salto articular de ${jump.toFixed(0)}° en el waypoint ${k}/${K} (cambio de rama)`, keys };
+    q = r.q; keys.push({ q: q.slice(), dur: durTotal / K, ease: false });
+  }
+  return { ok: true, keys, note: `ruta directa: ${K} waypoints, error final ${(v3.norm(v3.sub(target, arm.tcp(q))) * 1000).toFixed(2)} mm` };
+}
+
+function planSequential(arm, qStart, qTarget) {
+  const keys = [{ q: qStart.slice(), dur: 0 }];
+  let q = qStart.slice();
+  for (let i = 0; i < arm.dof; i++) {
+    const next = q.slice(); next[i] = qTarget[i];
+    const d = Math.abs(qTarget[i] - q[i]);
+    keys.push({ q: next.slice(), dur: Math.max(0.45, d / 90), ease: true, label: `J${i + 1} → ${qTarget[i].toFixed(1)}°` });
+    keys.push({ q: next.slice(), dur: 0.18 }); // pausa
+    q = next;
+  }
+  return { ok: true, keys, note: `secuencial: ${arm.dof} juntas, una a una` };
+}
+
+function planJoint(arm, qStart, qTarget, dur = 1.6) {
+  return { ok: true, keys: [{ q: qStart.slice(), dur: 0 }, { q: qTarget.slice(), dur, ease: true }], note: 'interpolación articular (todas las juntas a la vez)' };
 }
 
 // viridis (ajuste polinómico de M. Zucker) → [r,g,b] en 0..1
 function viridis(t) {
-  t = Math.min(1, Math.max(0, t));
+  t = clamp(t, 0, 1);
   const c0 = [0.2777, 0.0054, 0.3340], c1 = [0.1050, 1.4046, 1.3845], c2 = [-0.3308, 0.2148, 0.0950],
         c3 = [-4.6342, -5.7991, -19.3324], c4 = [6.2282, 14.1799, 56.6905], c5 = [4.7763, -13.7451, -65.3530], c6 = [-5.4354, 4.6456, 26.3124];
   return [0, 1, 2].map(i => c0[i] + t * (c1[i] + t * (c2[i] + t * (c3[i] + t * (c4[i] + t * (c5[i] + t * c6[i]))))));
@@ -355,14 +532,12 @@ controls.enableDamping = true; controls.dampingFactor = 0.08;
 scene.add(new THREE.HemisphereLight(0xffffff, 0x8899aa, 1.1));
 const sun = new THREE.DirectionalLight(0xffffff, 1.4); sun.position.set(2, -3, 4); scene.add(sun);
 
-// suelo: grid + círculo de alcance + ejes
 const ground = new THREE.Group(); scene.add(ground);
 let grid = null;
 const circle = new THREE.LineLoop(new THREE.BufferGeometry(), new THREE.LineDashedMaterial({ color: 0x888888, dashSize: 0.02, gapSize: 0.012 }));
 ground.add(circle);
 const axes = new THREE.AxesHelper(1); ground.add(axes);
 
-// brazo
 const linkGeo = new THREE.CylinderGeometry(1, 1, 1, 14);
 const sphereGeo = new THREE.SphereGeometry(1, 20, 14);
 const armGroup = new THREE.Group(); scene.add(armGroup);
@@ -373,10 +548,23 @@ const gripMat = new THREE.MeshStandardMaterial({ color: 0x444a55, roughness: 0.5
 const gripMeshes = Array.from({ length: 4 }, () => { const m = new THREE.Mesh(linkGeo, gripMat); armGroup.add(m); return m; });
 const tcpMesh = new THREE.Mesh(sphereGeo, new THREE.MeshStandardMaterial({ color: 0xffc400, emissive: 0x6b5200, roughness: 0.3 })); armGroup.add(tcpMesh);
 
-// nube
 const cloudGeo = new THREE.BufferGeometry();
 const cloudMat = new THREE.PointsMaterial({ size: 0.006, vertexColors: true, transparent: true, opacity: 0.9, sizeAttenuation: true });
 const cloud = new THREE.Points(cloudGeo, cloudMat); scene.add(cloud);
+
+// objetivo, ruta planificada y estela del TCP
+const targetMesh = new THREE.Mesh(sphereGeo, new THREE.MeshStandardMaterial({ color: 0xd81b74, emissive: 0x5a0a30, roughness: 0.35 }));
+targetMesh.visible = false; scene.add(targetMesh);
+const targetRing = new THREE.Mesh(new THREE.TorusGeometry(1, 0.08, 8, 40), new THREE.MeshBasicMaterial({ color: 0xd81b74 }));
+targetRing.visible = false; scene.add(targetRing);
+const pathLine = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xd81b74, transparent: true, opacity: 0.55 }));
+pathLine.visible = false; scene.add(pathLine);
+const TRAIL_MAX = 3000;
+const trailGeo = new THREE.BufferGeometry();
+trailGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(TRAIL_MAX * 3), 3));
+trailGeo.setDrawRange(0, 0);
+const trail = new THREE.Line(trailGeo, new THREE.LineBasicMaterial({ color: 0xffc400 })); scene.add(trail);
+let trailN = 0;
 
 const _up = new THREE.Vector3(0, 1, 0), _dir = new THREE.Vector3(), _q = new THREE.Quaternion();
 function placeCylinder(mesh, p, q, r) {
@@ -394,6 +582,8 @@ function applyTheme() {
   grid = new THREE.GridHelper(1, 10, cssColor('--grid-strong'), cssColor('--grid'));
   grid.rotation.x = Math.PI / 2;
   ground.add(grid);
+  const tc = cssColor('--target');
+  targetMesh.material.color.copy(tc); targetRing.material.color.copy(tc); pathLine.material.color.copy(tc);
   fitScene();
 }
 
@@ -402,7 +592,9 @@ function applyTheme() {
 // =====================================================================
 const arm = new Arm(3);
 let pose = [...arm.home];
-let cloudPts = null, cloudStale = true;
+let cloudPts = null, cloudQs = null, cloudStale = true;
+let sel = null;   // { idx, p:[x,y,z], qSample, qIK, ikInfo }
+let anim = null;  // { keys, t, T, times[] }
 const $ = id => document.getElementById(id);
 
 // --- selector DOF ---
@@ -427,7 +619,7 @@ for (let i = 0; i < 6; i++) {
   inp.addEventListener('input', () => {
     arm.setLinkLength(i, +inp.value);
     w.querySelector('output').textContent = (+inp.value).toFixed(3);
-    markStale(); drawArm(); fitScene();
+    stopAnim(); clearSelection(); markStale(); drawArm(); fitScene();
   });
   sliderEls.push(w);
 }
@@ -445,13 +637,20 @@ function syncSliders() {
 
 // --- otros controles ---
 $('nsamp').addEventListener('input', e => { $('nsamp-out').textContent = e.target.value; });
+$('speed').addEventListener('input', e => { $('speed-out').textContent = (+e.target.value).toFixed(2) + '×'; });
 $('recalc').addEventListener('click', recalc);
-$('pose-home').addEventListener('click', () => { pose = [...arm.home]; drawArm(); });
-$('pose-random').addEventListener('click', () => { pose = arm.randomPose(); drawArm(); });
-$('reset-len').addEventListener('click', () => { arm.resetLengths(); syncSliders(); markStale(); drawArm(); fitScene(); });
+$('pose-home').addEventListener('click', () => { stopAnim(); pose = [...arm.home]; drawArm(); });
+$('pose-random').addEventListener('click', () => { stopAnim(); pose = arm.randomPose(); drawArm(); });
+$('reset-len').addEventListener('click', () => { stopAnim(); clearSelection(); arm.resetLengths(); syncSliders(); markStale(); drawArm(); fitScene(); });
 ['show-arm', 'show-cloud', 'show-ground'].forEach(id => $(id).addEventListener('change', applyVisibility));
+$('pick-random').addEventListener('click', () => { if (cloudPts) selectPoint(Math.floor(Math.random() * (cloudPts.length / 3))); });
+$('go').addEventListener('click', goToTarget);
+$('go-home').addEventListener('click', () => {
+  if (!poseIsHome()) startAnim(planJoint(arm, pose, arm.home, 1.2), 'Volviendo a home…');
+});
 
 function setDof(d) {
+  stopAnim(); clearSelection();
   arm.setDof(d); pose = [...arm.home];
   syncSliders(); markStale(); drawArm(); fitScene();
 }
@@ -466,15 +665,16 @@ function markStale() {
   $('recalc').textContent = 'Recalcular workspace (desactualizado)';
   $('status').textContent = 'La nube mostrada NO corresponde a la geometría actual.\nPulsa «Recalcular workspace».';
 }
+const poseIsHome = () => pose.every((v, i) => Math.abs(v - arm.home[i]) < 1e-6);
 
 // --- Monte Carlo ---
 function recalc() {
+  stopAnim(); clearSelection();
   const n = +$('nsamp').value;
   const t0 = performance.now();
-  cloudPts = arm.sample(n);
+  ({ pos: cloudPts, qs: cloudQs } = arm.sample(n));
   const dt = performance.now() - t0;
 
-  // colores por altura Z + estadísticas
   let zmin = Infinity, zmax = -Infinity, rmax = 0;
   const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
   for (let k = 0; k < n; k++) {
@@ -502,7 +702,134 @@ function recalc() {
   applyVisibility();
 }
 
-// --- dibujo del brazo ---
+// =====================================================================
+// Selección de puntos (raycast sobre la nube)
+// =====================================================================
+const raycaster = new THREE.Raycaster();
+let pDown = null;
+renderer.domElement.addEventListener('pointerdown', e => { pDown = [e.clientX, e.clientY, e.button]; });
+renderer.domElement.addEventListener('pointerup', e => {
+  if (!pDown || pDown[2] !== 0) { pDown = null; return; }
+  const moved = Math.hypot(e.clientX - pDown[0], e.clientY - pDown[1]); pDown = null;
+  if (moved > 5 || !cloud.visible || cloudStale) return;
+  const rect = renderer.domElement.getBoundingClientRect();
+  const ndc = new THREE.Vector2(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
+  raycaster.setFromCamera(ndc, camera);
+  raycaster.params.Points.threshold = arm.maxReach() * 0.012;
+  const hits = raycaster.intersectObject(cloud);
+  if (hits.length) selectPoint(hits[0].index);
+});
+
+function selectPoint(idx) {
+  stopAnim();
+  const p = [cloudPts[3 * idx], cloudPts[3 * idx + 1], cloudPts[3 * idx + 2]];
+  const qSample = Array.from(cloudQs.subarray(idx * arm.dof, (idx + 1) * arm.dof));
+  const t0 = performance.now();
+  const r = solveIKMulti(arm, p);
+  const dt = performance.now() - t0;
+  let qIK, ikInfo, cls;
+  if (r.ok) {
+    qIK = r.q; cls = 'ok';
+    const from = r.seed === 0 ? 'desde home' : `desde semilla aleatoria (intento ${r.seed}; home cayó en un mínimo local)`;
+    ikInfo = `IK numérica (DLS) ${from}: ${r.it} iteraciones, ${dt.toFixed(1)} ms\nerror de posición ${(r.err * 1000).toFixed(3)} mm`;
+  } else {
+    qIK = qSample; cls = 'warn';
+    ikInfo = `IK numérica NO convergió (mejor error ${(r.err * 1000).toFixed(1)} mm)\n→ se usará la configuración del muestreo, que sí alcanza el punto`;
+  }
+  sel = { idx, p, qSample, qIK, ikInfo };
+
+  const R = arm.maxReach();
+  targetMesh.position.set(...p); targetMesh.scale.setScalar(Math.max(0.006, R * 0.016) * 1.5); targetMesh.visible = true;
+  targetRing.position.set(...p); targetRing.scale.setScalar(R * 0.045); targetRing.visible = true;
+  pathLine.visible = false; trailGeo.setDrawRange(0, 0); trailN = 0;
+
+  $('pick-hint').hidden = true; $('target-box').hidden = false;
+  $('t-xyz').textContent = p.map(v => (v >= 0 ? '+' : '') + v.toFixed(3)).join('  ');
+  $('ik-info').textContent = ikInfo; $('ik-info').className = 'status ' + cls;
+  $('qtab').innerHTML = `<tr><th>Junta</th><th>θ IK</th><th>θ muestra</th><th>Límites</th></tr>` +
+    arm.joints.map((j, i) => `<tr><td><span class="dot" style="background:${LINK_COLORS[i]}"></span>${j.name}</td>` +
+      `<td>${qIK[i].toFixed(1)}°</td><td>${qSample[i].toFixed(1)}°</td><td>[${j.rng[0]}, ${j.rng[1]}]</td></tr>`).join('');
+  $('traj-status').textContent = 'Listo. Elige el tipo de trayectoria y pulsa «Ir a este punto».';
+  $('traj-status').className = 'status';
+  $('prog').value = 0;
+}
+
+function clearSelection() {
+  sel = null;
+  targetMesh.visible = targetRing.visible = pathLine.visible = false;
+  trailGeo.setDrawRange(0, 0); trailN = 0;
+  $('pick-label').hidden = true;
+  $('pick-hint').hidden = false; $('target-box').hidden = true;
+}
+
+// =====================================================================
+// Trayectorias + animación
+// =====================================================================
+function goToTarget() {
+  if (!sel) return;
+  const mode = document.querySelector('input[name="traj"]:checked').value;
+  const plan = mode === 'direct' ? planDirect(arm, arm.home, sel.p) : planSequential(arm, arm.home, sel.qIK);
+  let keys, msg, cls = 'ok';
+  if (plan.ok) { keys = plan.keys; msg = `Plan: ${plan.note}`; }
+  else {
+    const fb = planJoint(arm, arm.home, sel.qIK, 2.0);
+    keys = fb.keys; cls = 'warn';
+    msg = `Sin ruta directa: ${plan.reason}.\n→ Se usa ${fb.note}.`;
+  }
+  // si no estamos en home, primero volvemos (interpolación articular) y hacemos una pausa
+  if (!poseIsHome()) keys = [{ q: pose.slice(), dur: 0 }, { q: arm.home.slice(), dur: 0.9, ease: true }, { q: arm.home.slice(), dur: 0.25 }, ...keys.slice(1)];
+  showPlannedPath(keys);
+  startAnim({ keys }, msg, cls);
+}
+
+function showPlannedPath(keys) {
+  const pts = [];
+  for (let s = 1; s < keys.length; s++) {
+    const a = keys[s - 1].q, b = keys[s].q;
+    for (let k = 0; k <= 10; k++) pts.push(...arm.tcp(a.map((v, i) => v + (b[i] - v) * k / 10)));
+  }
+  pathLine.geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pts), 3));
+  pathLine.geometry.computeBoundingSphere(); pathLine.visible = true;
+}
+
+function startAnim(plan, msg, cls = '') {
+  const speed = +$('speed').value;
+  const times = [0]; plan.keys.forEach((k, i) => { if (i) times.push(times[i - 1] + k.dur / speed); });
+  anim = { keys: plan.keys, times, T: times[times.length - 1], t: 0, last: performance.now(), msg };
+  trailGeo.setDrawRange(0, 0); trailN = 0;
+  $('traj-status').textContent = msg; $('traj-status').className = 'status ' + cls;
+  $('go').disabled = true; $('go-home').disabled = true;
+}
+function stopAnim() { anim = null; $('go').disabled = false; $('go-home').disabled = false; }
+
+function stepAnim(now) {
+  if (!anim) return;
+  anim.t += (now - anim.last) / 1000; anim.last = now;
+  const t = Math.min(anim.t, anim.T);
+  let s = 1; while (s < anim.times.length - 1 && anim.times[s] < t) s++;
+  const k0 = anim.keys[s - 1], k1 = anim.keys[s];
+  const segT = anim.times[s] - anim.times[s - 1];
+  let u = segT > 0 ? (t - anim.times[s - 1]) / segT : 1;
+  if (k1.ease) u = smooth(u);
+  pose = k0.q.map((v, i) => v + (k1.q[i] - v) * u);
+  drawArm();
+  $('prog').value = anim.T > 0 ? t / anim.T : 1;
+  if (k1.label) $('traj-status').textContent = `${anim.msg}\n▶ ${k1.label}`;
+  // estela
+  const tcp = arm.tcp(pose);
+  if (trailN < TRAIL_MAX) { trailGeo.attributes.position.array.set(tcp, trailN * 3); trailN++; trailGeo.setDrawRange(0, trailN); trailGeo.attributes.position.needsUpdate = true; }
+  if (anim.t >= anim.T) {
+    pose = anim.keys[anim.keys.length - 1].q.slice(); drawArm();
+    const err = sel ? v3.norm(v3.sub(sel.p, arm.tcp(pose))) * 1000 : null;
+    const done = err !== null && !poseIsHome() ? `${anim.msg}\n✓ Llegó. Error de posición del TCP: ${err.toFixed(2)} mm` : `${anim.msg}\n✓ Hecho.`;
+    $('traj-status').textContent = done;
+    stopAnim();
+  }
+}
+
+// =====================================================================
+// Dibujo del brazo y encuadre
+// =====================================================================
 function drawArm() {
   const { pts, T, tcp } = arm.fkChain(pose);
   const R = arm.maxReach();
@@ -511,7 +838,6 @@ function drawArm() {
   jointMeshes.forEach((m, i) => { m.visible = i <= arm.dof; if (m.visible) { m.position.set(...pts[i]); m.scale.setScalar(rJoint); } });
   baseMesh.position.set(0, 0, 0); baseMesh.scale.setScalar(rJoint * 2.2);
 
-  // gripper: barra muñeca→TCP + palma + dos dedos (frame final: columnas de T)
   const wrist = pts[pts.length - 1];
   const fwd = arm.gripAxis === 'x' ? [T[0], T[4], T[8]] : [T[2], T[6], T[10]];
   const perp = arm.gripAxis === 'x' ? [T[1], T[5], T[9]] : [T[0], T[4], T[8]];
@@ -526,7 +852,6 @@ function drawArm() {
   applyVisibility();
 }
 
-// --- encuadre según alcance ---
 let lastFitR = -1;
 function fitScene() {
   const R = arm.maxReach();
@@ -539,7 +864,7 @@ function fitScene() {
   circle.geometry.computeBoundingSphere(); circle.computeLineDistances();
   circle.material.dashSize = R * 0.04; circle.material.gapSize = R * 0.025;
   cloudMat.size = Math.max(0.004, R * 0.009);
-  if (Math.abs(R - lastFitR) / Math.max(R, 1e-6) > 0.15) {   // recoloca la cámara solo en cambios grandes
+  if (Math.abs(R - lastFitR) / Math.max(R, 1e-6) > 0.15) {
     camera.position.set(1.6 * R, -2.1 * R, 1.3 * R);
     controls.target.set(0, 0, 0.1 * R);
     lastFitR = R;
@@ -547,17 +872,30 @@ function fitScene() {
   camera.near = R * 0.01; camera.far = R * 40; camera.updateProjectionMatrix();
 }
 
+function updatePickLabel() {
+  const el = $('pick-label');
+  if (!sel) { el.hidden = true; return; }
+  const v = new THREE.Vector3(...sel.p).project(camera);
+  if (v.z > 1) { el.hidden = true; return; }
+  el.hidden = false;
+  el.style.left = ((v.x + 1) / 2 * viewport.clientWidth) + 'px';
+  el.style.top = ((1 - v.y) / 2 * viewport.clientHeight) + 'px';
+  el.textContent = `objetivo  ${sel.p.map(c => c.toFixed(2)).join(', ')}`;
+}
+
 function resize() {
   const w = viewport.clientWidth, h = viewport.clientHeight;
   renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
 }
 new ResizeObserver(resize).observe(viewport);
-
-// tema: reacciona al SO y al toggle del visor
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
 new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
 // --- arranque ---
 resize(); applyTheme(); syncSliders(); drawArm(); fitScene(); recalc();
-(function loop() { controls.update(); renderer.render(scene, camera); requestAnimationFrame(loop); })();
+(function loop(now) {
+  stepAnim(now); controls.update(); updatePickLabel();
+  targetRing.lookAt(camera.position);
+  renderer.render(scene, camera); requestAnimationFrame(loop);
+})(performance.now());
 </script>
